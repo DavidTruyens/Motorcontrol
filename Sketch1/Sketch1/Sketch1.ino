@@ -11,12 +11,85 @@ DualVNH5019MotorShield md;
 
 // Change these two numbers to the pins connected to your encoder.
 //   Best Performance: both pins have interrupt capability
-//   Good Performance: only the first pin has interrupt capability
+//   Good Performance: only the first pin has interrupt capability --> Uno has pin 3 available as interrupt
 //   Low Performance:  neither pin has interrupt capability
 Encoder myEnc(3, 5);
 //   avoid using pins with LEDs attached
 
+#include <PID_v1.h>
 
+//Define Variables we'll be connecting to
+double Setpoint, Input, Output;
+
+//Specify the links and initial tuning parameters
+PID myPID(&Input, &Output, &Setpoint, 0.05, 0.1, 0.0001, DIRECT);
+
+
+void setup()
+{
+	Serial.begin(9600);
+	Serial.println("Dual VNH5019 Motor Shield");
+	md.init();
+	Setpoint = 1000;
+	//turn the PID on
+	myPID.SetMode(AUTOMATIC);
+}
+
+int speed = 0;
+float Pvalue = 1;
+float gain = 0;
+unsigned long prevtime = 0;
+unsigned long interval = 1000;
+double speedincr = 10;
+
+void loop()
+{
+	encoder();
+	Input = speed;
+	myPID.Compute();
+	md.setM1Speed(int(Output));
+	stopIfFault;
+	if (millis() - prevtime >= interval) {
+		prevtime = millis();
+
+		if (Setpoint >= 2000) {
+			speedincr = -20;
+		}
+		else if (Setpoint <= -2000) {
+			speedincr = 20;
+		}
+
+		Setpoint = Setpoint + speedincr;
+
+		Serial.print("Setpoint= ");
+		Serial.println(Setpoint);
+	}
+
+}
+
+long oldPosition = -999;
+long prevpos = 0;
+long deltap = 0;
+
+long lasttime;
+long deltat;
+
+void encoder() {
+	long newPosition = myEnc.read();
+	if (newPosition != oldPosition) {
+		oldPosition = newPosition;
+	}
+	deltat = millis() - lasttime;
+
+	if (deltat >= 10) {
+		lasttime = millis();
+		deltap = newPosition - prevpos;
+		speed = deltap * 1000 / deltat;
+		Serial.print("speed: ");
+		Serial.println(speed);
+		prevpos = newPosition;
+	}
+}
 
 void stopIfFault()
 {
@@ -30,77 +103,4 @@ void stopIfFault()
 		Serial.println("M2 fault");
 		while (1);
 	}
-}
-
-void setup()
-{
-	Serial.begin(9600);
-	Serial.println("Dual VNH5019 Motor Shield");
-	md.init();
-}
-
-void loop()
-{
-	//encoder();
-	md.setM1Speed(20);
-	stopIfFault;
-	for (int i = 0; i <= 400; i++)
-	{
-		encoder();
-		md.setM1Speed(i);
-		stopIfFault();
-
-		delay(2);
-	}
-
-	for (int i = 400; i >= -400; i--)
-	{
-		md.setM1Speed(i);
-		stopIfFault();
-		encoder();
-		delay(2);
-	}
-
-	for (int i = -400; i <= 0; i++)
-	{
-		md.setM1Speed(i);
-		stopIfFault();
-		encoder();
-		delay(2);
-	}
-
-
-}
-
-long oldPosition = -999;
-long prevpos = 0;
-long deltap = 0;
-int speed = 0;
-
-
-long lasttime;
-long deltat;
-
-void encoder() {
-	long newPosition = myEnc.read();
-	if (newPosition != oldPosition) {
-		oldPosition = newPosition;
-		//Serial.println(newPosition);
-	}
-	deltat = millis() - lasttime;
-
-	if (deltat >= 10) {
-		lasttime = millis();
-		deltap = newPosition - prevpos;
-		/*Serial.print(" delta p: ");
-		Serial.print(deltap);
-		Serial.print(" en t:");
-		Serial.println(deltat);*/
-		speed = deltap * 1000 / deltat;
-		Serial.print("speed: ");
-		Serial.println(speed);
-		prevpos = newPosition;
-	}
-
-
 }
