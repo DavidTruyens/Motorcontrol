@@ -32,7 +32,9 @@ void setup()
 	md.init();
 	Setpoint = 1000;
 	//turn the PID on
+	myPID.SetOutputLimits(-2000, 2000);
 	myPID.SetMode(AUTOMATIC);
+
 }
 
 int speed = 0;
@@ -53,10 +55,10 @@ void loop()
 		prevtime = millis();
 
 		if (Setpoint >= 2000) {
-			speedincr = -20;
+			speedincr = -50;
 		}
 		else if (Setpoint <= -2000) {
-			speedincr = 20;
+			speedincr = 50;
 		}
 
 		Setpoint = Setpoint + speedincr;
